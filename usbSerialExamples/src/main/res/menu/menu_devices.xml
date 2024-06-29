@@ -2,11 +2,8 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/refresh"
-        android:title="Refresh devices" />
+        android:title="Обновить список" />
     <item
         android:id="@+id/baud_rate"
-        android:title="Baud rate" />
-    <item
-        android:id="@+id/read_mode"
-        android:title="Read mode" />
+        android:title="Скорость порта" />
 </menu>
