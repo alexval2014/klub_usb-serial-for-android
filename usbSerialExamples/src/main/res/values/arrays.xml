@@ -7,8 +7,4 @@
         <item>57600</item>
         <item>115200</item>
     </string-array>
-    <string-array name="read_modes">
-        <item>event: SerialInputOutputManager.onNewData()</item>
-        <item>direct: UsbSerialPort.read()</item>
-    </string-array>
 </resources>
