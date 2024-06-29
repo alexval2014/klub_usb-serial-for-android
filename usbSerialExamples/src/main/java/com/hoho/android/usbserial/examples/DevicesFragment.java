@@ -92,12 +92,17 @@ public class DevicesFragment extends ListFragment {
     }
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
+    public boolean onOptionsItemSelected(MenuItem item)
+    {
         int id = item.getItemId();
-        if(id == R.id.refresh) {
+
+        if(id == R.id.refresh)
+        {
             refresh();
             return true;
-        } else if (id ==R.id.baud_rate) {
+        }
+        else if (id ==R.id.baud_rate)
+        {
             final String[] values = getResources().getStringArray(R.array.baud_rates);
             int pos = java.util.Arrays.asList(values).indexOf(String.valueOf(baudRate));
             AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
@@ -108,18 +113,9 @@ public class DevicesFragment extends ListFragment {
             });
             builder.create().show();
             return true;
-        } else if (id ==R.id.read_mode) {
-            final String[] values = getResources().getStringArray(R.array.read_modes);
-            int pos = withIoManager ? 0 : 1; // read_modes[0]=event/io-manager, read_modes[1]=direct
-            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-            builder.setTitle("Read mode");
-            builder.setSingleChoiceItems(values, pos, (dialog, which) -> {
-                withIoManager = (which == 0);
-                dialog.dismiss();
-            });
-            builder.create().show();
-            return true;
-        } else {
+        }
+        else
+        {
             return super.onOptionsItemSelected(item);
         }
     }
