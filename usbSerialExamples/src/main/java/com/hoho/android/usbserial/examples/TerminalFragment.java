@@ -41,6 +41,16 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.EnumSet;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+
+
+
+
 public class TerminalFragment extends Fragment implements SerialInputOutputManager.Listener {
 
     private enum UsbPermission { Unknown, Requested, Granted, Denied }
@@ -62,11 +72,35 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
     private UsbPermission usbPermission = UsbPermission.Unknown;
     private boolean connected = false;
 
-    public TerminalFragment() {
-        broadcastReceiver = new BroadcastReceiver() {
+    private InputStream mInputStream;
+
+    private final byte[] Serial_Read_Data = new byte[25];//Данные принимаемые от компютера//5 байт "b"(98)+ 8 байт+2 байта ID + 10 штук "d"(100)
+    private final char[] bufOutCAN00 = new char[8];  //MCO_STATE_A светофор
+    private final char[] bufOutCAN01 = new char[8];  //IPD_STATE_A
+    private final char[] bufOutCAN02 = new char[8];  //MM_STATION
+    private final char[] bufOutCAN03 = new char[8];  //MM_SIGNAL
+    private final char[] bufOutCAN04 = new char[8];  //IPD_DATE
+    private final char[] bufOutCAN05 = new char[8];  //MM_COORD
+    private final char[] bufOutCAN06 = new char[8];  //REG_STATE
+    private final char[] bufOutCAN07 = new char[8];  //AMR_STATE
+    private final char[] bufOutCAN08 = new char[8];  //BVU_STATE_A
+    private final char[] bufOutCAN09 = new char[8];  //MCO_LIMITS_A
+    private final char[] bufOutCAN10 = new char[8];  //SYS_DATA, INPUT_DATA
+    private final char[] bufOutCAN11 = new char[8];  //SYS_DATA_STATE
+    private final char[] bufOutCAN_EK = new char[8]; //AUX_RESOURCE_MM передает номер ЭК
+
+    //=================================================================================================
+    //Жизненный цикл
+    //=================================================================================================
+    public TerminalFragment()
+    {
+        broadcastReceiver = new BroadcastReceiver()
+        {
             @Override
-            public void onReceive(Context context, Intent intent) {
-                if(INTENT_ACTION_GRANT_USB.equals(intent.getAction())) {
+            public void onReceive(Context context, Intent intent)
+            {
+                if(INTENT_ACTION_GRANT_USB.equals(intent.getAction()))
+                {
                     usbPermission = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
                             ? UsbPermission.Granted : UsbPermission.Denied;
                     connect();
@@ -76,9 +110,9 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         mainLooper = new Handler(Looper.getMainLooper());
     }
 
-    /*
-     * Lifecycle
-     */
+    //=================================================================================================
+    //Жизненный цикл
+    //=================================================================================================
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -90,34 +124,54 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         withIoManager = getArguments().getBoolean("withIoManager");
     }
 
+    //=================================================================================================
+    //
+    //=================================================================================================
     @Override
-    public void onStart() {
+    public void onStart()
+    {
         super.onStart();
         ContextCompat.registerReceiver(getActivity(), broadcastReceiver, new IntentFilter(INTENT_ACTION_GRANT_USB), ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
+    //=================================================================================================
+    //
+    //=================================================================================================
     @Override
-    public void onStop() {
+    public void onStop()
+    {
         getActivity().unregisterReceiver(broadcastReceiver);
         super.onStop();
     }
 
+    //=================================================================================================
+    //
+    //=================================================================================================
     @Override
-    public void onResume() {
+    public void onResume()
+    {
         super.onResume();
         if(!connected && (usbPermission == UsbPermission.Unknown || usbPermission == UsbPermission.Granted))
             mainLooper.post(this::connect);
     }
 
+    //=================================================================================================
+    //
+    //=================================================================================================
     @Override
-    public void onPause() {
-        if(connected) {
+    public void onPause()
+    {
+        if(connected)
+        {
             status("disconnected");
             disconnect();
         }
         super.onPause();
     }
 
+    //=================================================================================================
+    //
+    //=================================================================================================
     /*
      * UI
      */
@@ -132,59 +186,63 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
         View receiveBtn = view.findViewById(R.id.receive_btn);
         controlLines = new ControlLines(view);
-        if(withIoManager) {
+
+        if(withIoManager)
+        {
             receiveBtn.setVisibility(View.GONE);
-        } else {
+        }
+        else
+        {
             receiveBtn.setOnClickListener(v -> read());
         }
         return view;
     }
 
+    //=================================================================================================
+    //
+    //=================================================================================================
     @Override
-    public void onCreateOptionsMenu(@NonNull Menu menu, MenuInflater inflater) {
+    public void onCreateOptionsMenu(@NonNull Menu menu, MenuInflater inflater)
+    {
         inflater.inflate(R.menu.menu_terminal, menu);
     }
 
+    //=================================================================================================
+    //
+    //=================================================================================================
     @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
+    public boolean onOptionsItemSelected(MenuItem item)
+    {
         int id = item.getItemId();
-        if (id == R.id.clear) {
+
+        if (id == R.id.clear)
+        {
             receiveText.setText("");
             return true;
-        } else if( id == R.id.send_break) {
-            if(!connected) {
-                Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
-            } else {
-                try {
-                    usbSerialPort.setBreak(true);
-                    Thread.sleep(100); // should show progress bar instead of blocking UI thread
-                    usbSerialPort.setBreak(false);
-                    SpannableStringBuilder spn = new SpannableStringBuilder();
-                    spn.append("send <break>\n");
-                    spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    receiveText.append(spn);
-                } catch(UnsupportedOperationException ignored) {
-                    Toast.makeText(getActivity(), "BREAK not supported", Toast.LENGTH_SHORT).show();
-                } catch(Exception e) {
-                    Toast.makeText(getActivity(), "BREAK failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                }
-            }
-            return true;
-        } else {
+        }
+        else
+        {
             return super.onOptionsItemSelected(item);
         }
     }
 
+    //=================================================================================================
+    //
+    //=================================================================================================
     /*
      * Serial
      */
     @Override
-    public void onNewData(byte[] data) {
+    public void onNewData(byte[] data)
+    {
         mainLooper.post(() -> {
             receive(data);
         });
     }
 
+    //=================================================================================================
+    //
+    //=================================================================================================
     @Override
     public void onRunError(Exception e) {
         mainLooper.post(() -> {
@@ -193,34 +251,48 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         });
     }
 
+    //=================================================================================================
+    //
+    //=================================================================================================
     /*
      * Serial + UI
      */
-    private void connect() {
+    private void connect()
+    {
         UsbDevice device = null;
         UsbManager usbManager = (UsbManager) getActivity().getSystemService(Context.USB_SERVICE);
         for(UsbDevice v : usbManager.getDeviceList().values())
-            if(v.getDeviceId() == deviceId)
-                device = v;
-        if(device == null) {
+            if(v.getDeviceId() == deviceId) device = v;
+
+
+        if(device == null)
+        {
             status("connection failed: device not found");
             return;
         }
         UsbSerialDriver driver = UsbSerialProber.getDefaultProber().probeDevice(device);
-        if(driver == null) {
+
+        if(driver == null)
+        {
             driver = CustomProber.getCustomProber().probeDevice(device);
         }
-        if(driver == null) {
+
+        if(driver == null)
+        {
             status("connection failed: no driver for device");
             return;
         }
-        if(driver.getPorts().size() < portNum) {
+
+        if(driver.getPorts().size() < portNum)
+        {
             status("connection failed: not enough ports at device");
             return;
         }
+
         usbSerialPort = driver.getPorts().get(portNum);
         UsbDeviceConnection usbConnection = usbManager.openDevice(driver.getDevice());
-        if(usbConnection == null && usbPermission == UsbPermission.Unknown && !usbManager.hasPermission(driver.getDevice())) {
+        if(usbConnection == null && usbPermission == UsbPermission.Unknown && !usbManager.hasPermission(driver.getDevice()))
+        {
             usbPermission = UsbPermission.Requested;
             int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_MUTABLE : 0;
             Intent intent = new Intent(INTENT_ACTION_GRANT_USB);
@@ -229,8 +301,10 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
             usbManager.requestPermission(driver.getDevice(), usbPermissionIntent);
             return;
         }
-        if(usbConnection == null) {
-            if (!usbManager.hasPermission(driver.getDevice()))
+
+        if(usbConnection == null)
+        {
+            if(!usbManager.hasPermission(driver.getDevice()))
                 status("connection failed: permission denied");
             else
                 status("connection failed: open failed");
@@ -244,11 +318,15 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
             }catch (UnsupportedOperationException e){
                 status("unsupport setparameters");
             }
-            if(withIoManager) {
+
+            if(withIoManager)
+            {
                 usbIoManager = new SerialInputOutputManager(usbSerialPort, this);
                 usbIoManager.start();
             }
-            status("connected");
+
+            status("Подключено");
+
             connected = true;
             controlLines.start();
         } catch (Exception e) {
@@ -257,25 +335,39 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         }
     }
 
-    private void disconnect() {
+    //=================================================================================================
+    //
+    //=================================================================================================
+    private void disconnect()
+    {
         connected = false;
         controlLines.stop();
-        if(usbIoManager != null) {
+
+        if(usbIoManager != null)
+        {
             usbIoManager.setListener(null);
             usbIoManager.stop();
         }
+
         usbIoManager = null;
+
         try {
             usbSerialPort.close();
         } catch (IOException ignored) {}
         usbSerialPort = null;
     }
 
-    private void send(String str) {
-        if(!connected) {
+    //=================================================================================================
+    //
+    //=================================================================================================
+    private void send(String str)
+    {
+        if(!connected)
+        {
             Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
             return;
         }
+
         try {
         byte[] data = (str + '\n').getBytes();
             SpannableStringBuilder spn = new SpannableStringBuilder();
@@ -289,15 +381,39 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         }
     }
 
-    private void read() {
-        if(!connected) {
+    //=================================================================================================
+    //Чтение данных из COM порта
+    //=================================================================================================
+    private void read()
+    {
+        int size = 0;
+        if(!connected)
+        {
             Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
             return;
         }
+
         try {
-            byte[] buffer = new byte[8192];
-            int len = usbSerialPort.read(buffer, READ_WAIT_MILLIS);
-            receive(Arrays.copyOf(buffer, len));
+            byte[] readBuffer = new byte[8200];
+
+            int len = usbSerialPort.read(readBuffer, READ_WAIT_MILLIS);
+            String S3 = new String(readBuffer, "UTF-8");
+            receive(Arrays.copyOf(readBuffer, len));
+
+            //mInputStream = mSerialPort.getInputStream();
+
+
+
+            while (mInputStream.available() > 0)
+            {
+               // int numBytes = inputStream.read(readBuffer);
+            }
+
+            size = mInputStream.read(readBuffer);
+
+
+
+
         } catch (IOException e) {
             // when using read with timeout, USB bulkTransfer returns -1 on timeout _and_ errors
             // like connection loss, so there is typically no exception thrown here on error
@@ -306,104 +422,316 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         }
     }
 
-    private void receive(byte[] data) {
+    //=================================================================================================
+    //Обработчик принятых данных
+    //Данные принимаемые из компютера 5 байт "b"(98)+ 8 байт+2 байта ID + 10 штук "d"(100)
+    //=================================================================================================
+    private void receive(byte[] data)
+    {
+        int S_DataRead = 0;        //байт считанный из буфера COM
+        int opozkol = 0;           //число пришедших подряд опозновательных символов (должно быть 10 штук "d"(100))
+
+        byte[] S = new byte [25];  //Вспомогательный массив для организации стека
+        byte[] S1 = new byte [25]; //Вспомогательный массив для организации стека
+
         SpannableStringBuilder spn = new SpannableStringBuilder();
-        spn.append("receive " + data.length + " bytes\n");
-        if(data.length > 0)
-            spn.append(HexDump.dumpHexString(data)).append("\n");
+        //spn.append("receive " + data.length + " bytes\n");
+
+        //для отладки (шестнадцатеричные строки, разделенные пробелом).
+        //if(data.length > 0) spn.append(HexDump.dumpHexString(data)).append("\n");
+
+       if(data.length > 0)
+        {
+            do{
+                for (int j = 0; j <= data.length; j++)
+                {
+                     S_DataRead  = data[j];//Чтение полученных данных для последующего разбора
+                }
+
+                if (S_DataRead >= 0)
+                {
+                    //Смещаем все значения в стеке на один байт
+                    //for (int i = 0; i <= 23; i++)//операция 1
+                    //{
+                    //    S1[i + 1] = S[i];
+                    //}
+                    System.arraycopy(S, 0, S1, 1, 24);
+
+                    //for (int i = 0; i <= 24; i++)//операция 2
+                    //{
+                    //    S[i] = S1[i];
+                    //}
+                    System.arraycopy(S1, 0, S, 0, 25);
+
+
+                    S[0] = (byte)(S_DataRead & 0xFF);//Читаем байт low Byte
+
+                    if (S_DataRead == 100)//Ищем начало - 10 штук "d"(100)
+                    {
+                        opozkol ++;
+                    }
+                    else
+                    {
+                        opozkol = 0;
+                    }
+
+
+                    if (S_DataRead == 100 & opozkol == 10)
+                    {
+                        //Если нашли начало , то обновляем стек
+                        //for (int i=0; i <= 24; i++)
+                        //{
+                        //    Serial_Read_Data[i] = S[i];
+                        //}
+                        if (25 >= 0) System.arraycopy(S, 0, Serial_Read_Data, 0, 25);
+
+                        Serial_Parsing_Data();//Вызов функции разбор данных из COM порта.
+                    }
+                }
+            }while (data.length > 0);
+        }
+
+
+       //spn.append("receive " + data.length + " bytes\n");
+
+        //для отладки (шестнадцатеричные строки, разделенные пробелом).
+
+        //if(data.length > 0) spn.append(HexDump.dumpHexString(data)).append("\n");
+
+
+        spn.append("receive " + bufOutCAN00[0] + " bytes\n");
+
         receiveText.append(spn);
     }
+    //=================================================================================================
+    //Разбор данных из COM порта
+    //=================================================================================================
+    void Serial_Parsing_Data()
+    {
+        if (Serial_Read_Data[19] == 0)               //MCO_STATE_A
+        {
+            bufOutCAN00[0] = (char) Serial_Read_Data[18];
+            bufOutCAN00[1] = (char) Serial_Read_Data[17];
+            bufOutCAN00[2] = (char) Serial_Read_Data[16];
+            bufOutCAN00[3] = (char) Serial_Read_Data[15];
+            bufOutCAN00[4] = (char) Serial_Read_Data[14];
+            bufOutCAN00[5] = (char) Serial_Read_Data[13];
+            bufOutCAN00[6] = (char) Serial_Read_Data[12];
+            bufOutCAN00[7] = (char) Serial_Read_Data[11];
+        }
+        else if (Serial_Read_Data[19] == 1)         //IPD_STATE_A
+        {
+            bufOutCAN01[0] = (char) Serial_Read_Data[18];
+            bufOutCAN01[1] = (char) Serial_Read_Data[17];
+            bufOutCAN01[2] = (char) Serial_Read_Data[16];
+            bufOutCAN01[3] = (char) Serial_Read_Data[15];
+            bufOutCAN01[4] = (char) Serial_Read_Data[14];
+            bufOutCAN01[5] = (char) Serial_Read_Data[13];
+            bufOutCAN01[6] = (char) Serial_Read_Data[12];
+            bufOutCAN01[7] = (char) Serial_Read_Data[11];
+        }
+        else if (Serial_Read_Data[19] == 2)         //MM_STATION Название станции в кодировке Win-1251.
+        {
+            bufOutCAN02[0] = (char) Serial_Read_Data[18];
+            bufOutCAN02[1] = (char) Serial_Read_Data[17];
+            bufOutCAN02[2] = (char) Serial_Read_Data[16];
+            bufOutCAN02[3] = (char) Serial_Read_Data[15];
+            bufOutCAN02[4] = (char) Serial_Read_Data[14];
+            bufOutCAN02[5] = (char) Serial_Read_Data[13];
+            bufOutCAN02[6] = (char) Serial_Read_Data[12];
+            bufOutCAN02[7] = (char) Serial_Read_Data[11];
+        }
+        else if (Serial_Read_Data[19] == 3)         //MM_SIGNAL Название первой от головы поезда цели (кодировка Win-1251).
+        {
+            bufOutCAN03[0] = (char) Serial_Read_Data[18];
+            bufOutCAN03[1] = (char) Serial_Read_Data[17];
+            bufOutCAN03[2] = (char) Serial_Read_Data[16];
+            bufOutCAN03[3] = (char) Serial_Read_Data[15];
+            bufOutCAN03[4] = (char) Serial_Read_Data[14];
+            bufOutCAN03[5] = (char) Serial_Read_Data[13];
+            bufOutCAN03[6] = (char) Serial_Read_Data[12];
+            bufOutCAN03[7] = (char) Serial_Read_Data[11];
+        }
+        else if (Serial_Read_Data[19] == 4)         //IPD_DATE
+        {
+            bufOutCAN04[0] = (char) Serial_Read_Data[18];
+            bufOutCAN04[1] = (char) Serial_Read_Data[17];
+            bufOutCAN04[2] = (char) Serial_Read_Data[16];
+            bufOutCAN04[3] = (char) Serial_Read_Data[15];
+            bufOutCAN04[4] = (char) Serial_Read_Data[14];
+            bufOutCAN04[5] = (char) Serial_Read_Data[13];
+            bufOutCAN04[6] = (char) Serial_Read_Data[12];
+            bufOutCAN04[7] = (char) Serial_Read_Data[11];
+        }
+        else if (Serial_Read_Data[19] == 5)         //MM_COORD
+        {
+            bufOutCAN05[0] = (char) Serial_Read_Data[18];
+            bufOutCAN05[1] = (char) Serial_Read_Data[17];
+            bufOutCAN05[2] = (char) Serial_Read_Data[16];
+            bufOutCAN05[3] = (char) Serial_Read_Data[15];
+            bufOutCAN05[4] = (char) Serial_Read_Data[14];
+            bufOutCAN05[5] = (char) Serial_Read_Data[13];
+            bufOutCAN05[6] = (char) Serial_Read_Data[12];
+            bufOutCAN05[7] = (char) Serial_Read_Data[11];
+        }
+        else if (Serial_Read_Data[19] == 6)         //REG_STATE
+        {
+            bufOutCAN06[0] = (char) Serial_Read_Data[18];
+            bufOutCAN06[1] = (char) Serial_Read_Data[17];
+            bufOutCAN06[2] = (char) Serial_Read_Data[16];
+            bufOutCAN06[3] = (char) Serial_Read_Data[15];
+            bufOutCAN06[4] = (char) Serial_Read_Data[14];
+            bufOutCAN06[5] = (char) Serial_Read_Data[13];
+            bufOutCAN06[6] = (char) Serial_Read_Data[12];
+            bufOutCAN06[7] = (char) Serial_Read_Data[11];
+        }
+        else if (Serial_Read_Data[19] == 7)         //ARM_STATE
+        {
+            bufOutCAN07[0] = (char) Serial_Read_Data[18];
+            bufOutCAN07[1] = (char) Serial_Read_Data[17];
+            bufOutCAN07[2] = (char) Serial_Read_Data[16];
+            bufOutCAN07[3] = (char) Serial_Read_Data[15];
+            bufOutCAN07[4] = (char) Serial_Read_Data[14];
+            bufOutCAN07[5] = (char) Serial_Read_Data[13];
+            bufOutCAN07[6] = (char) Serial_Read_Data[12];
+            bufOutCAN07[7] = (char) Serial_Read_Data[11];
+        }
+        else if (Serial_Read_Data[19] == 8)         //BVU_STATE_A
+        {
+            bufOutCAN08[0] = (char) Serial_Read_Data[18];
+            bufOutCAN08[1] = (char) Serial_Read_Data[17];
+            bufOutCAN08[2] = (char) Serial_Read_Data[16];
+            bufOutCAN08[3] = (char) Serial_Read_Data[15];
+            bufOutCAN08[4] = (char) Serial_Read_Data[14];
+            bufOutCAN08[5] = (char) Serial_Read_Data[13];
+            bufOutCAN08[6] = (char) Serial_Read_Data[12];
+            bufOutCAN08[7] = (char) Serial_Read_Data[11];
+        }
+        else if (Serial_Read_Data[19] == 9)        //MCO_LIMITS_A
+        {
+            bufOutCAN09[0] = (char) Serial_Read_Data[18];
+            bufOutCAN09[1] = (char) Serial_Read_Data[17];
+            bufOutCAN09[2] = (char) Serial_Read_Data[16];
+            bufOutCAN09[3] = (char) Serial_Read_Data[15];
+            bufOutCAN09[4] = (char) Serial_Read_Data[14];
+            bufOutCAN09[5] = (char) Serial_Read_Data[13];
+            bufOutCAN09[6] = (char) Serial_Read_Data[12];
+            bufOutCAN09[7] = (char) Serial_Read_Data[11];
+        }
+        else if (Serial_Read_Data[19] == 10)        //SYS_DATA_INPUT_DATA
+        {
+            bufOutCAN10[0] = (char) Serial_Read_Data[18];
+            bufOutCAN10[1] = (char) Serial_Read_Data[17];
+            bufOutCAN10[2] = (char) Serial_Read_Data[16];
+            bufOutCAN10[3] = (char) Serial_Read_Data[15];
+            bufOutCAN10[4] = (char) Serial_Read_Data[14];
+            bufOutCAN10[5] = (char) Serial_Read_Data[13];
+            bufOutCAN10[6] = (char) Serial_Read_Data[12];
+            bufOutCAN10[7] = (char) Serial_Read_Data[11];
+        }
+        else if (Serial_Read_Data[19] == 11)        //SYS_DATA_STATE
+        {
+            bufOutCAN11[0] = (char) Serial_Read_Data[18];
+            bufOutCAN11[1] = (char) Serial_Read_Data[17];
+            bufOutCAN11[2] = (char) Serial_Read_Data[16];
+            bufOutCAN11[3] = (char) Serial_Read_Data[15];
+            bufOutCAN11[4] = (char) Serial_Read_Data[14];
+            bufOutCAN11[5] = (char) Serial_Read_Data[13];
+            bufOutCAN11[6] = (char) Serial_Read_Data[12];
+            bufOutCAN11[7] = (char) Serial_Read_Data[11];
+        }
+        else if (Serial_Read_Data[19] == 12)         //AUX_RESOURCE_MM
+        {
+            bufOutCAN_EK[0] = (char) Serial_Read_Data[18];
+            bufOutCAN_EK[1] = (char) Serial_Read_Data[17];
+            bufOutCAN_EK[2] = (char) Serial_Read_Data[16];
+            bufOutCAN_EK[3] = (char) Serial_Read_Data[15];
+            bufOutCAN_EK[4] = (char) Serial_Read_Data[14];
+            bufOutCAN_EK[5] = (char) Serial_Read_Data[13];
+            bufOutCAN_EK[6] = (char) Serial_Read_Data[12];
+            bufOutCAN_EK[7] = (char) Serial_Read_Data[11];
+        }
+        return;
+    }
+    //=================================================================================================
 
-    void status(String str) {
+    //=================================================================================================
+    //
+    //=================================================================================================
+    void status(String str)
+    {
         SpannableStringBuilder spn = new SpannableStringBuilder(str+'\n');
         spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         receiveText.append(spn);
     }
 
-    class ControlLines {
+    //=================================================================================================
+    //
+    //=================================================================================================
+    class ControlLines
+    {
         private static final int refreshInterval = 200; // msec
 
         private final Runnable runnable;
-        private final ToggleButton rtsBtn, ctsBtn, dtrBtn, dsrBtn, cdBtn, riBtn;
 
-        ControlLines(View view) {
+
+        ControlLines(View view)
+        {
             runnable = this::run; // w/o explicit Runnable, a new lambda would be created on each postDelayed, which would not be found again by removeCallbacks
-
-            rtsBtn = view.findViewById(R.id.controlLineRts);
-            ctsBtn = view.findViewById(R.id.controlLineCts);
-            dtrBtn = view.findViewById(R.id.controlLineDtr);
-            dsrBtn = view.findViewById(R.id.controlLineDsr);
-            cdBtn = view.findViewById(R.id.controlLineCd);
-            riBtn = view.findViewById(R.id.controlLineRi);
-            rtsBtn.setOnClickListener(this::toggle);
-            dtrBtn.setOnClickListener(this::toggle);
         }
 
-        private void toggle(View v) {
+        //=================================================================================================
+        //
+        //=================================================================================================
+        private void toggle(View v)
+        {
             ToggleButton btn = (ToggleButton) v;
             if (!connected) {
                 btn.setChecked(!btn.isChecked());
                 Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
                 return;
             }
+
             String ctrl = "";
-            try {
-                if (btn.equals(rtsBtn)) { ctrl = "RTS"; usbSerialPort.setRTS(btn.isChecked()); }
-                if (btn.equals(dtrBtn)) { ctrl = "DTR"; usbSerialPort.setDTR(btn.isChecked()); }
-            } catch (IOException e) {
-                status("set" + ctrl + "() failed: " + e.getMessage());
-            }
         }
 
-        private void run() {
+        //=================================================================================================
+        //
+        //=================================================================================================
+        private void run()
+        {
             if (!connected)
                 return;
             try {
                 EnumSet<UsbSerialPort.ControlLine> controlLines = usbSerialPort.getControlLines();
-                rtsBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.RTS));
-                ctsBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.CTS));
-                dtrBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.DTR));
-                dsrBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.DSR));
-                cdBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.CD));
-                riBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.RI));
                 mainLooper.postDelayed(runnable, refreshInterval);
             } catch (Exception e) {
                 status("getControlLines() failed: " + e.getMessage() + " -> stopped control line refresh");
             }
         }
 
-        void start() {
+        //=================================================================================================
+        //
+        //=================================================================================================
+        void start()
+        {
             if (!connected)
                 return;
             try {
                 EnumSet<UsbSerialPort.ControlLine> controlLines = usbSerialPort.getSupportedControlLines();
-                if (!controlLines.contains(UsbSerialPort.ControlLine.RTS)) rtsBtn.setVisibility(View.INVISIBLE);
-                if (!controlLines.contains(UsbSerialPort.ControlLine.CTS)) ctsBtn.setVisibility(View.INVISIBLE);
-                if (!controlLines.contains(UsbSerialPort.ControlLine.DTR)) dtrBtn.setVisibility(View.INVISIBLE);
-                if (!controlLines.contains(UsbSerialPort.ControlLine.DSR)) dsrBtn.setVisibility(View.INVISIBLE);
-                if (!controlLines.contains(UsbSerialPort.ControlLine.CD))   cdBtn.setVisibility(View.INVISIBLE);
-                if (!controlLines.contains(UsbSerialPort.ControlLine.RI))   riBtn.setVisibility(View.INVISIBLE);
+
                 run();
             } catch (Exception e) {
                 Toast.makeText(getActivity(), "getSupportedControlLines() failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                rtsBtn.setVisibility(View.INVISIBLE);
-                ctsBtn.setVisibility(View.INVISIBLE);
-                dtrBtn.setVisibility(View.INVISIBLE);
-                dsrBtn.setVisibility(View.INVISIBLE);
-                cdBtn.setVisibility(View.INVISIBLE);
-                cdBtn.setVisibility(View.INVISIBLE);
-                riBtn.setVisibility(View.INVISIBLE);
             }
         }
 
-        void stop() {
+        //=================================================================================================
+        //
+        //=================================================================================================
+        void stop()
+        {
             mainLooper.removeCallbacks(runnable);
-            rtsBtn.setChecked(false);
-            ctsBtn.setChecked(false);
-            dtrBtn.setChecked(false);
-            dsrBtn.setChecked(false);
-            cdBtn.setChecked(false);
-            riBtn.setChecked(false);
         }
     }
 }
