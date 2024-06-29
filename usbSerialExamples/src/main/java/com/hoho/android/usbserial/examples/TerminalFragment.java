@@ -41,16 +41,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.EnumSet;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-
-
-
-
 public class TerminalFragment extends Fragment implements SerialInputOutputManager.Listener {
 
     private enum UsbPermission { Unknown, Requested, Granted, Denied }
@@ -395,25 +385,8 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
 
         try {
             byte[] readBuffer = new byte[8200];
-
             int len = usbSerialPort.read(readBuffer, READ_WAIT_MILLIS);
-            String S3 = new String(readBuffer, "UTF-8");
             receive(Arrays.copyOf(readBuffer, len));
-
-            //mInputStream = mSerialPort.getInputStream();
-
-
-
-            while (mInputStream.available() > 0)
-            {
-               // int numBytes = inputStream.read(readBuffer);
-            }
-
-            size = mInputStream.read(readBuffer);
-
-
-
-
         } catch (IOException e) {
             // when using read with timeout, USB bulkTransfer returns -1 on timeout _and_ errors
             // like connection loss, so there is typically no exception thrown here on error
@@ -436,16 +409,16 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
 
         SpannableStringBuilder spn = new SpannableStringBuilder();
         //spn.append("receive " + data.length + " bytes\n");
-
         //для отладки (шестнадцатеричные строки, разделенные пробелом).
         //if(data.length > 0) spn.append(HexDump.dumpHexString(data)).append("\n");
 
        if(data.length > 0)
         {
             do{
+                //Чтение полученных данных для последующего разбора
                 for (int j = 0; j <= data.length; j++)
                 {
-                     S_DataRead  = data[j];//Чтение полученных данных для последующего разбора
+                     S_DataRead  = data[j];
                 }
 
                 if (S_DataRead >= 0)
