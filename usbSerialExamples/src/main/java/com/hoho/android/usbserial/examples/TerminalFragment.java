@@ -411,18 +411,15 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
     //=================================================================================================
     //Обработчик принятых данных
     //Данные принимаемые из компютера 5 байт "b"(98)+ 8 байт+2 байта ID + 10 штук "d"(100)
+    //0x62 0x62 0x62 0x62 0x62 0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x00 0x64 0x64 0x64 0x64 0x64 0x64 0x64 0x64 0x64 0x64
     //=================================================================================================
     private void receive(byte[] data)
     {
-
         int S_DataRead = 0;        //байт считанный из буфера COM
         int opozkol = 0;           //число пришедших подряд опозновательных символов (должно быть 10 штук "d"(100))
 
         byte[] S = new byte [25];  //Вспомогательный массив для организации стека
         byte[] S1 = new byte [25]; //Вспомогательный массив для организации стека
-
-
-
 
         if(data.length > 0)
         {
@@ -467,20 +464,18 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                         //spn.append("receive " + data.length + " bytes\n");
                         //receiveText.append(spn);
 
-                        //receive(Arrays.copyOf(bufOutCAN00, 25));
+
 
                     }//конец if (S_DataRead == 100 & opozkol == 10)
                 }//конец if (S_DataRead >= 0)
             }//конец for (int i = readBuffer.length-1; i >= 0; i--)
         }//конец if(readBuffer.length > 0)
 
-
-
-
         //SpannableStringBuilder spn = new SpannableStringBuilder();
-        //Convert bytes to String
-        //String s_out = new String(data[], "UTF-8");
-        //spn.append("receive " + data.length + " bytes\n");
+       // spn.append("receive " + data.length + " bytes\n");
+
+        //для отладки (шестнадцатеричные строки, разделенные пробелом).
+        //if(data.length > 0) spn.append(HexDump.dumpHexString(data)).append("\n");
         //receiveText.append(spn);
 
     }//конец private void receive(byte[] data)
@@ -499,9 +494,6 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
             bufOutCAN00[5] = Serial_Read_Data[13];
             bufOutCAN00[6] = Serial_Read_Data[12];
             bufOutCAN00[7] = Serial_Read_Data[11];
-
-
-
         }
         else if (Serial_Read_Data[19] == 1)         //IPD_STATE_A
         {
@@ -536,7 +528,6 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
             bufOutCAN03[6] = Serial_Read_Data[12];
             bufOutCAN03[7] = Serial_Read_Data[11];
         }
-        /*
         else if (Serial_Read_Data[19] == 4)         //IPD_DATE
         {
             bufOutCAN04[0] = Serial_Read_Data[18];
@@ -561,91 +552,90 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         }
         else if (Serial_Read_Data[19] == 6)         //REG_STATE
         {
-            bufOutCAN06[0] = (char) Serial_Read_Data[18];
-            bufOutCAN06[1] = (char) Serial_Read_Data[17];
-            bufOutCAN06[2] = (char) Serial_Read_Data[16];
-            bufOutCAN06[3] = (char) Serial_Read_Data[15];
-            bufOutCAN06[4] = (char) Serial_Read_Data[14];
-            bufOutCAN06[5] = (char) Serial_Read_Data[13];
-            bufOutCAN06[6] = (char) Serial_Read_Data[12];
-            bufOutCAN06[7] = (char) Serial_Read_Data[11];
+            bufOutCAN06[0] = Serial_Read_Data[18];
+            bufOutCAN06[1] = Serial_Read_Data[17];
+            bufOutCAN06[2] = Serial_Read_Data[16];
+            bufOutCAN06[3] = Serial_Read_Data[15];
+            bufOutCAN06[4] = Serial_Read_Data[14];
+            bufOutCAN06[5] = Serial_Read_Data[13];
+            bufOutCAN06[6] = Serial_Read_Data[12];
+            bufOutCAN06[7] = Serial_Read_Data[11];
         }
         else if (Serial_Read_Data[19] == 7)         //ARM_STATE
         {
-            bufOutCAN07[0] = (char) Serial_Read_Data[18];
-            bufOutCAN07[1] = (char) Serial_Read_Data[17];
-            bufOutCAN07[2] = (char) Serial_Read_Data[16];
-            bufOutCAN07[3] = (char) Serial_Read_Data[15];
-            bufOutCAN07[4] = (char) Serial_Read_Data[14];
-            bufOutCAN07[5] = (char) Serial_Read_Data[13];
-            bufOutCAN07[6] = (char) Serial_Read_Data[12];
-            bufOutCAN07[7] = (char) Serial_Read_Data[11];
+            bufOutCAN07[0] = Serial_Read_Data[18];
+            bufOutCAN07[1] = Serial_Read_Data[17];
+            bufOutCAN07[2] = Serial_Read_Data[16];
+            bufOutCAN07[3] = Serial_Read_Data[15];
+            bufOutCAN07[4] = Serial_Read_Data[14];
+            bufOutCAN07[5] = Serial_Read_Data[13];
+            bufOutCAN07[6] = Serial_Read_Data[12];
+            bufOutCAN07[7] = Serial_Read_Data[11];
         }
         else if (Serial_Read_Data[19] == 8)         //BVU_STATE_A
         {
-            bufOutCAN08[0] = (char) Serial_Read_Data[18];
-            bufOutCAN08[1] = (char) Serial_Read_Data[17];
-            bufOutCAN08[2] = (char) Serial_Read_Data[16];
-            bufOutCAN08[3] = (char) Serial_Read_Data[15];
-            bufOutCAN08[4] = (char) Serial_Read_Data[14];
-            bufOutCAN08[5] = (char) Serial_Read_Data[13];
-            bufOutCAN08[6] = (char) Serial_Read_Data[12];
-            bufOutCAN08[7] = (char) Serial_Read_Data[11];
+            bufOutCAN08[0] = Serial_Read_Data[18];
+            bufOutCAN08[1] = Serial_Read_Data[17];
+            bufOutCAN08[2] = Serial_Read_Data[16];
+            bufOutCAN08[3] = Serial_Read_Data[15];
+            bufOutCAN08[4] = Serial_Read_Data[14];
+            bufOutCAN08[5] = Serial_Read_Data[13];
+            bufOutCAN08[6] = Serial_Read_Data[12];
+            bufOutCAN08[7] = Serial_Read_Data[11];
         }
         else if (Serial_Read_Data[19] == 9)        //MCO_LIMITS_A
         {
-            bufOutCAN09[0] = (char) Serial_Read_Data[18];
-            bufOutCAN09[1] = (char) Serial_Read_Data[17];
-            bufOutCAN09[2] = (char) Serial_Read_Data[16];
-            bufOutCAN09[3] = (char) Serial_Read_Data[15];
-            bufOutCAN09[4] = (char) Serial_Read_Data[14];
-            bufOutCAN09[5] = (char) Serial_Read_Data[13];
-            bufOutCAN09[6] = (char) Serial_Read_Data[12];
-            bufOutCAN09[7] = (char) Serial_Read_Data[11];
+            bufOutCAN09[0] = Serial_Read_Data[18];
+            bufOutCAN09[1] = Serial_Read_Data[17];
+            bufOutCAN09[2] = Serial_Read_Data[16];
+            bufOutCAN09[3] = Serial_Read_Data[15];
+            bufOutCAN09[4] = Serial_Read_Data[14];
+            bufOutCAN09[5] = Serial_Read_Data[13];
+            bufOutCAN09[6] = Serial_Read_Data[12];
+            bufOutCAN09[7] = Serial_Read_Data[11];
         }
         else if (Serial_Read_Data[19] == 10)        //SYS_DATA_INPUT_DATA
         {
-            bufOutCAN10[0] = (char) Serial_Read_Data[18];
-            bufOutCAN10[1] = (char) Serial_Read_Data[17];
-            bufOutCAN10[2] = (char) Serial_Read_Data[16];
-            bufOutCAN10[3] = (char) Serial_Read_Data[15];
-            bufOutCAN10[4] = (char) Serial_Read_Data[14];
-            bufOutCAN10[5] = (char) Serial_Read_Data[13];
-            bufOutCAN10[6] = (char) Serial_Read_Data[12];
-            bufOutCAN10[7] = (char) Serial_Read_Data[11];
+            bufOutCAN10[0] = Serial_Read_Data[18];
+            bufOutCAN10[1] = Serial_Read_Data[17];
+            bufOutCAN10[2] = Serial_Read_Data[16];
+            bufOutCAN10[3] = Serial_Read_Data[15];
+            bufOutCAN10[4] = Serial_Read_Data[14];
+            bufOutCAN10[5] = Serial_Read_Data[13];
+            bufOutCAN10[6] = Serial_Read_Data[12];
+            bufOutCAN10[7] = Serial_Read_Data[11];
         }
         else if (Serial_Read_Data[19] == 11)        //SYS_DATA_STATE
         {
-            bufOutCAN11[0] = (char) Serial_Read_Data[18];
-            bufOutCAN11[1] = (char) Serial_Read_Data[17];
-            bufOutCAN11[2] = (char) Serial_Read_Data[16];
-            bufOutCAN11[3] = (char) Serial_Read_Data[15];
-            bufOutCAN11[4] = (char) Serial_Read_Data[14];
-            bufOutCAN11[5] = (char) Serial_Read_Data[13];
-            bufOutCAN11[6] = (char) Serial_Read_Data[12];
-            bufOutCAN11[7] = (char) Serial_Read_Data[11];
+            bufOutCAN11[0] = Serial_Read_Data[18];
+            bufOutCAN11[1] = Serial_Read_Data[17];
+            bufOutCAN11[2] = Serial_Read_Data[16];
+            bufOutCAN11[3] = Serial_Read_Data[15];
+            bufOutCAN11[4] = Serial_Read_Data[14];
+            bufOutCAN11[5] = Serial_Read_Data[13];
+            bufOutCAN11[6] = Serial_Read_Data[12];
+            bufOutCAN11[7] = Serial_Read_Data[11];
         }
         else if (Serial_Read_Data[19] == 12)         //AUX_RESOURCE_MM
         {
-            bufOutCAN_EK[0] = (char) Serial_Read_Data[18];
-            bufOutCAN_EK[1] = (char) Serial_Read_Data[17];
-            bufOutCAN_EK[2] = (char) Serial_Read_Data[16];
-            bufOutCAN_EK[3] = (char) Serial_Read_Data[15];
-            bufOutCAN_EK[4] = (char) Serial_Read_Data[14];
-            bufOutCAN_EK[5] = (char) Serial_Read_Data[13];
-            bufOutCAN_EK[6] = (char) Serial_Read_Data[12];
-            bufOutCAN_EK[7] = (char) Serial_Read_Data[11];
+            bufOutCAN_EK[0] = Serial_Read_Data[18];
+            bufOutCAN_EK[1] = Serial_Read_Data[17];
+            bufOutCAN_EK[2] = Serial_Read_Data[16];
+            bufOutCAN_EK[3] = Serial_Read_Data[15];
+            bufOutCAN_EK[4] = Serial_Read_Data[14];
+            bufOutCAN_EK[5] = Serial_Read_Data[13];
+            bufOutCAN_EK[6] = Serial_Read_Data[12];
+            bufOutCAN_EK[7] = Serial_Read_Data[11];
         }
-*/
+
+        //SpannableStringBuilder spn = new SpannableStringBuilder();
+        //spn.append(Arrays.toString(bufOutCAN00) + '\n');
+        //receiveText.append(spn);
+
         SpannableStringBuilder spn = new SpannableStringBuilder();
-        spn.append(Arrays.toString(bufOutCAN00) + '\n');
+        //для отладки (шестнадцатеричные строки, разделенные пробелом).
+        if(bufOutCAN00.length > 0) spn.append(HexDump.dumpHexString(bufOutCAN00)).append("\n");
         receiveText.append(spn);
-
-
-        //bufOutCAN00[0]
-
-
-        //return;
     }
     //=================================================================================================
 
