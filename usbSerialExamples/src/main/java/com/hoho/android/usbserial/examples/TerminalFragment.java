@@ -407,75 +407,55 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
         byte[] S = new byte [25];  //Вспомогательный массив для организации стека
         byte[] S1 = new byte [25]; //Вспомогательный массив для организации стека
 
-        SpannableStringBuilder spn = new SpannableStringBuilder();
-        //spn.append("receive " + data.length + " bytes\n");
-        //для отладки (шестнадцатеричные строки, разделенные пробелом).
-        //if(data.length > 0) spn.append(HexDump.dumpHexString(data)).append("\n");
-
-       if(data.length > 0)
+        if(data.length > 0)
         {
-            do{
-                //Чтение полученных данных для последующего разбора
-                for (int j = 0; j <= data.length; j++)
-                {
-                     S_DataRead  = data[j];
-                }
+            for (int i = data.length-1; i >= 0; i--)
+            {
+                S_DataRead  = data[i];//Чтение полученных данных для последующего разбора
 
                 if (S_DataRead >= 0)
                 {
                     //Смещаем все значения в стеке на один байт
-                    //for (int i = 0; i <= 23; i++)//операция 1
-                    //{
-                    //    S1[i + 1] = S[i];
-                    //}
-                    System.arraycopy(S, 0, S1, 1, 24);
+                    for (int a = 0; a <= 23; a++)//операция 1
+                    {
+                        S1[a + 1] = S[a];
+                    }
 
-                    //for (int i = 0; i <= 24; i++)//операция 2
-                    //{
-                    //    S[i] = S1[i];
-                    //}
-                    System.arraycopy(S1, 0, S, 0, 25);
-
+                    for (int b = 0; b <= 24; b++)//операция 2
+                    {
+                        S[b] = S1[b];
+                    }
 
                     S[0] = (byte)(S_DataRead & 0xFF);//Читаем байт low Byte
 
                     if (S_DataRead == 100)//Ищем начало - 10 штук "d"(100)
                     {
-                        opozkol ++;
+                        opozkol++;
                     }
                     else
                     {
                         opozkol = 0;
                     }
 
-
                     if (S_DataRead == 100 & opozkol == 10)
                     {
                         //Если нашли начало , то обновляем стек
-                        //for (int i=0; i <= 24; i++)
-                        //{
-                        //    Serial_Read_Data[i] = S[i];
-                        //}
-                        if (25 >= 0) System.arraycopy(S, 0, Serial_Read_Data, 0, 25);
+                        for (int j=0; j <= 24; j++)
+                        {
+                            Serial_Read_Data[j] = S[j];
+                        }
 
                         Serial_Parsing_Data();//Вызов функции разбор данных из COM порта.
-                    }
-                }
-            }while (data.length > 0);
-        }
-
-
-       //spn.append("receive " + data.length + " bytes\n");
-
-        //для отладки (шестнадцатеричные строки, разделенные пробелом).
-
-        //if(data.length > 0) spn.append(HexDump.dumpHexString(data)).append("\n");
-
-
-        spn.append("receive " + bufOutCAN00[0] + " bytes\n");
-
-        receiveText.append(spn);
-    }
+                        SpannableStringBuilder spn = new SpannableStringBuilder();
+                        //Convert bytes to String
+                        //String s_out = new String(bufOutCAN00, "UTF-8");
+                        spn.append("receive " + bufOutCAN00[0] + " bytes\n");
+                        receiveText.append(spn);
+                    }//конец if (S_DataRead == 100 & opozkol == 10)
+                }//конец if (S_DataRead >= 0)
+            }//конец for (int i = data.length-1; i >= 0; i--)
+        }//конец if(data.length > 0)
+    }//конец private void receive(byte[] data)
     //=================================================================================================
     //Разбор данных из COM порта
     //=================================================================================================
