@@ -41,6 +41,16 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.EnumSet;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+
+
+
+
 public class TerminalFragment extends Fragment implements SerialInputOutputManager.Listener {
 
     private enum UsbPermission { Unknown, Requested, Granted, Denied }
@@ -65,19 +75,19 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
     private InputStream mInputStream;
 
     private final byte[] Serial_Read_Data = new byte[25];//Данные принимаемые от компютера//5 байт "b"(98)+ 8 байт+2 байта ID + 10 штук "d"(100)
-    private final char[] bufOutCAN00 = new char[8];  //MCO_STATE_A светофор
-    private final char[] bufOutCAN01 = new char[8];  //IPD_STATE_A
-    private final char[] bufOutCAN02 = new char[8];  //MM_STATION
-    private final char[] bufOutCAN03 = new char[8];  //MM_SIGNAL
-    private final char[] bufOutCAN04 = new char[8];  //IPD_DATE
-    private final char[] bufOutCAN05 = new char[8];  //MM_COORD
-    private final char[] bufOutCAN06 = new char[8];  //REG_STATE
-    private final char[] bufOutCAN07 = new char[8];  //AMR_STATE
-    private final char[] bufOutCAN08 = new char[8];  //BVU_STATE_A
-    private final char[] bufOutCAN09 = new char[8];  //MCO_LIMITS_A
-    private final char[] bufOutCAN10 = new char[8];  //SYS_DATA, INPUT_DATA
-    private final char[] bufOutCAN11 = new char[8];  //SYS_DATA_STATE
-    private final char[] bufOutCAN_EK = new char[8]; //AUX_RESOURCE_MM передает номер ЭК
+    private final byte[] bufOutCAN00 = new byte[8];  //MCO_STATE_A светофор
+    private final byte[] bufOutCAN01 = new byte[8];  //IPD_STATE_A
+    private final byte[] bufOutCAN02 = new byte[8];  //MM_STATION
+    private final byte[] bufOutCAN03 = new byte[8];  //MM_SIGNAL
+    private final byte[] bufOutCAN04 = new byte[8];  //IPD_DATE
+    private final byte[] bufOutCAN05 = new byte[8];  //MM_COORD
+    private final byte[] bufOutCAN06 = new byte[8];  //REG_STATE
+    private final byte[] bufOutCAN07 = new byte[8];  //AMR_STATE
+    private final byte[] bufOutCAN08 = new byte[8];  //BVU_STATE_A
+    private final byte[] bufOutCAN09 = new byte[8];  //MCO_LIMITS_A
+    private final byte[] bufOutCAN10 = new byte[8];  //SYS_DATA, INPUT_DATA
+    private final byte[] bufOutCAN11 = new byte[8];  //SYS_DATA_STATE
+    private final byte[] bufOutCAN_EK = new byte[8]; //AUX_RESOURCE_MM передает номер ЭК
 
     //=================================================================================================
     //Жизненный цикл
@@ -385,8 +395,11 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
 
         try {
             byte[] readBuffer = new byte[8200];
+
             int len = usbSerialPort.read(readBuffer, READ_WAIT_MILLIS);
             receive(Arrays.copyOf(readBuffer, len));
+
+
         } catch (IOException e) {
             // when using read with timeout, USB bulkTransfer returns -1 on timeout _and_ errors
             // like connection loss, so there is typically no exception thrown here on error
@@ -401,11 +414,15 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
     //=================================================================================================
     private void receive(byte[] data)
     {
+
         int S_DataRead = 0;        //байт считанный из буфера COM
         int opozkol = 0;           //число пришедших подряд опозновательных символов (должно быть 10 штук "d"(100))
 
         byte[] S = new byte [25];  //Вспомогательный массив для организации стека
         byte[] S1 = new byte [25]; //Вспомогательный массив для организации стека
+
+
+
 
         if(data.length > 0)
         {
@@ -446,15 +463,26 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
                         }
 
                         Serial_Parsing_Data();//Вызов функции разбор данных из COM порта.
-                        SpannableStringBuilder spn = new SpannableStringBuilder();
-                        //Convert bytes to String
-                        //String s_out = new String(bufOutCAN00, "UTF-8");
-                        spn.append("receive " + bufOutCAN00[0] + " bytes\n");
-                        receiveText.append(spn);
+                        //SpannableStringBuilder spn = new SpannableStringBuilder();
+                        //spn.append("receive " + data.length + " bytes\n");
+                        //receiveText.append(spn);
+
+                        //receive(Arrays.copyOf(bufOutCAN00, 25));
+
                     }//конец if (S_DataRead == 100 & opozkol == 10)
                 }//конец if (S_DataRead >= 0)
-            }//конец for (int i = data.length-1; i >= 0; i--)
-        }//конец if(data.length > 0)
+            }//конец for (int i = readBuffer.length-1; i >= 0; i--)
+        }//конец if(readBuffer.length > 0)
+
+
+
+
+        //SpannableStringBuilder spn = new SpannableStringBuilder();
+        //Convert bytes to String
+        //String s_out = new String(data[], "UTF-8");
+        //spn.append("receive " + data.length + " bytes\n");
+        //receiveText.append(spn);
+
     }//конец private void receive(byte[] data)
     //=================================================================================================
     //Разбор данных из COM порта
@@ -463,69 +491,73 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
     {
         if (Serial_Read_Data[19] == 0)               //MCO_STATE_A
         {
-            bufOutCAN00[0] = (char) Serial_Read_Data[18];
-            bufOutCAN00[1] = (char) Serial_Read_Data[17];
-            bufOutCAN00[2] = (char) Serial_Read_Data[16];
-            bufOutCAN00[3] = (char) Serial_Read_Data[15];
-            bufOutCAN00[4] = (char) Serial_Read_Data[14];
-            bufOutCAN00[5] = (char) Serial_Read_Data[13];
-            bufOutCAN00[6] = (char) Serial_Read_Data[12];
-            bufOutCAN00[7] = (char) Serial_Read_Data[11];
+            bufOutCAN00[0] = Serial_Read_Data[18];
+            bufOutCAN00[1] = Serial_Read_Data[17];
+            bufOutCAN00[2] = Serial_Read_Data[16];
+            bufOutCAN00[3] = Serial_Read_Data[15];
+            bufOutCAN00[4] = Serial_Read_Data[14];
+            bufOutCAN00[5] = Serial_Read_Data[13];
+            bufOutCAN00[6] = Serial_Read_Data[12];
+            bufOutCAN00[7] = Serial_Read_Data[11];
+
+
+
         }
         else if (Serial_Read_Data[19] == 1)         //IPD_STATE_A
         {
-            bufOutCAN01[0] = (char) Serial_Read_Data[18];
-            bufOutCAN01[1] = (char) Serial_Read_Data[17];
-            bufOutCAN01[2] = (char) Serial_Read_Data[16];
-            bufOutCAN01[3] = (char) Serial_Read_Data[15];
-            bufOutCAN01[4] = (char) Serial_Read_Data[14];
-            bufOutCAN01[5] = (char) Serial_Read_Data[13];
-            bufOutCAN01[6] = (char) Serial_Read_Data[12];
-            bufOutCAN01[7] = (char) Serial_Read_Data[11];
+            bufOutCAN01[0] = Serial_Read_Data[18];
+            bufOutCAN01[1] = Serial_Read_Data[17];
+            bufOutCAN01[2] = Serial_Read_Data[16];
+            bufOutCAN01[3] = Serial_Read_Data[15];
+            bufOutCAN01[4] = Serial_Read_Data[14];
+            bufOutCAN01[5] = Serial_Read_Data[13];
+            bufOutCAN01[6] = Serial_Read_Data[12];
+            bufOutCAN01[7] = Serial_Read_Data[11];
         }
         else if (Serial_Read_Data[19] == 2)         //MM_STATION Название станции в кодировке Win-1251.
         {
-            bufOutCAN02[0] = (char) Serial_Read_Data[18];
-            bufOutCAN02[1] = (char) Serial_Read_Data[17];
-            bufOutCAN02[2] = (char) Serial_Read_Data[16];
-            bufOutCAN02[3] = (char) Serial_Read_Data[15];
-            bufOutCAN02[4] = (char) Serial_Read_Data[14];
-            bufOutCAN02[5] = (char) Serial_Read_Data[13];
-            bufOutCAN02[6] = (char) Serial_Read_Data[12];
-            bufOutCAN02[7] = (char) Serial_Read_Data[11];
+            bufOutCAN02[0] = Serial_Read_Data[18];
+            bufOutCAN02[1] = Serial_Read_Data[17];
+            bufOutCAN02[2] = Serial_Read_Data[16];
+            bufOutCAN02[3] = Serial_Read_Data[15];
+            bufOutCAN02[4] = Serial_Read_Data[14];
+            bufOutCAN02[5] = Serial_Read_Data[13];
+            bufOutCAN02[6] = Serial_Read_Data[12];
+            bufOutCAN02[7] = Serial_Read_Data[11];
         }
         else if (Serial_Read_Data[19] == 3)         //MM_SIGNAL Название первой от головы поезда цели (кодировка Win-1251).
         {
-            bufOutCAN03[0] = (char) Serial_Read_Data[18];
-            bufOutCAN03[1] = (char) Serial_Read_Data[17];
-            bufOutCAN03[2] = (char) Serial_Read_Data[16];
-            bufOutCAN03[3] = (char) Serial_Read_Data[15];
-            bufOutCAN03[4] = (char) Serial_Read_Data[14];
-            bufOutCAN03[5] = (char) Serial_Read_Data[13];
-            bufOutCAN03[6] = (char) Serial_Read_Data[12];
-            bufOutCAN03[7] = (char) Serial_Read_Data[11];
+            bufOutCAN03[0] = Serial_Read_Data[18];
+            bufOutCAN03[1] = Serial_Read_Data[17];
+            bufOutCAN03[2] = Serial_Read_Data[16];
+            bufOutCAN03[3] = Serial_Read_Data[15];
+            bufOutCAN03[4] = Serial_Read_Data[14];
+            bufOutCAN03[5] = Serial_Read_Data[13];
+            bufOutCAN03[6] = Serial_Read_Data[12];
+            bufOutCAN03[7] = Serial_Read_Data[11];
         }
+        /*
         else if (Serial_Read_Data[19] == 4)         //IPD_DATE
         {
-            bufOutCAN04[0] = (char) Serial_Read_Data[18];
-            bufOutCAN04[1] = (char) Serial_Read_Data[17];
-            bufOutCAN04[2] = (char) Serial_Read_Data[16];
-            bufOutCAN04[3] = (char) Serial_Read_Data[15];
-            bufOutCAN04[4] = (char) Serial_Read_Data[14];
-            bufOutCAN04[5] = (char) Serial_Read_Data[13];
-            bufOutCAN04[6] = (char) Serial_Read_Data[12];
-            bufOutCAN04[7] = (char) Serial_Read_Data[11];
+            bufOutCAN04[0] = Serial_Read_Data[18];
+            bufOutCAN04[1] = Serial_Read_Data[17];
+            bufOutCAN04[2] = Serial_Read_Data[16];
+            bufOutCAN04[3] = Serial_Read_Data[15];
+            bufOutCAN04[4] = Serial_Read_Data[14];
+            bufOutCAN04[5] = Serial_Read_Data[13];
+            bufOutCAN04[6] = Serial_Read_Data[12];
+            bufOutCAN04[7] = Serial_Read_Data[11];
         }
         else if (Serial_Read_Data[19] == 5)         //MM_COORD
         {
-            bufOutCAN05[0] = (char) Serial_Read_Data[18];
-            bufOutCAN05[1] = (char) Serial_Read_Data[17];
-            bufOutCAN05[2] = (char) Serial_Read_Data[16];
-            bufOutCAN05[3] = (char) Serial_Read_Data[15];
-            bufOutCAN05[4] = (char) Serial_Read_Data[14];
-            bufOutCAN05[5] = (char) Serial_Read_Data[13];
-            bufOutCAN05[6] = (char) Serial_Read_Data[12];
-            bufOutCAN05[7] = (char) Serial_Read_Data[11];
+            bufOutCAN05[0] = Serial_Read_Data[18];
+            bufOutCAN05[1] = Serial_Read_Data[17];
+            bufOutCAN05[2] = Serial_Read_Data[16];
+            bufOutCAN05[3] = Serial_Read_Data[15];
+            bufOutCAN05[4] = Serial_Read_Data[14];
+            bufOutCAN05[5] = Serial_Read_Data[13];
+            bufOutCAN05[6] = Serial_Read_Data[12];
+            bufOutCAN05[7] = Serial_Read_Data[11];
         }
         else if (Serial_Read_Data[19] == 6)         //REG_STATE
         {
@@ -604,7 +636,16 @@ public class TerminalFragment extends Fragment implements SerialInputOutputManag
             bufOutCAN_EK[6] = (char) Serial_Read_Data[12];
             bufOutCAN_EK[7] = (char) Serial_Read_Data[11];
         }
-        return;
+*/
+        SpannableStringBuilder spn = new SpannableStringBuilder();
+        spn.append(Arrays.toString(bufOutCAN00) + '\n');
+        receiveText.append(spn);
+
+
+        //bufOutCAN00[0]
+
+
+        //return;
     }
     //=================================================================================================
 
